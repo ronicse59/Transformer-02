@@ -47,6 +47,7 @@ class BilingualDataset(Dataset):
             ]
         )
 
+        # Add SOS to the decoder input
         decoder_input = torch.cat(
             [
                 self.sos_token,
@@ -55,6 +56,7 @@ class BilingualDataset(Dataset):
             ]
         )
 
+        # Add EOS tot he label (what we expect as output from the decoder)
         label = torch.cat(
             [
                 torch.tensor(dec_input_tokens, dtype=torch.int64),
@@ -66,3 +68,17 @@ class BilingualDataset(Dataset):
         assert encoder_input.size(0) == self.seq_len
         assert decoder_input.size(0) == self.seq_len
         assert label.size(0) == self.seq_len
+
+        return {
+            "encoder_input": encoder_input, # (Seq_Len)
+            "decoder_input": decoder_input, # (Seq_Len)
+            "encoder_mask": (encoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int(), # (1, 1, Seq_Len)
+            "decoder_mask": (decoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int() & causal_mask(decoder_input.size(0)), # (1, Seq_Len) & (1, Seq_Len, Seq_Len)
+            "label": label, # (Seq_Len)
+            "src_text": src_text,
+            "tgt_text": tgt_text
+        }
+
+def causal_mask(size):
+    mask = torch.triu(torch.ones(1, size, size), diagonal=1).type(torch.int)
+    return mask == 0
