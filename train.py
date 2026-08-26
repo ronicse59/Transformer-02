@@ -106,8 +106,8 @@ def train_model(config):
 
     for epoch in range(initial_epoch, config['num_epochs']):
         model.train()
-        batch_interator = tqdm(train_dataloader, desc=f'Processing epoch {epoch:02d}')
-        for batch in batch_interator:
+        batch_iterator = tqdm(train_dataloader, desc=f'Processing epoch {epoch:02d}')
+        for batch in batch_iterator:
 
             encoder_input = batch['encoder_input'].to(device) # (B, Seq_Len)
             decoder_input = batch['decoder_input'].to(device) # (B, Seq_Len)
@@ -115,3 +115,13 @@ def train_model(config):
             decoder_mask = batch['decoder_mask'].to(device) # (B, 1, Seq_Len, Seq_Len)
 
             # Run the tensors through the transformer
+            encoder_output = model.encode(encoder_input, encoder_mask) # (B, Seq_Len, d_model)
+            decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask) # (B, Seq_Len, d_model)
+            proj_output = model.project(decoder_output) # (B, Seq_Len, tgt_vocab_size)
+
+            label = batch['label'].to(device) # (B, Seq_Len)
+
+            # (B, Seq_Len, tgt_vocab_size) --> (B * Seq_Len, tgt_vocab_size)
+            loss = loss_fn(proj_output.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1))
+            batch_iterator.set_postfix(f"loss": f"{loss.item():6.3f}")
+            
